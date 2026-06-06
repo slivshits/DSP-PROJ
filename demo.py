@@ -126,7 +126,8 @@ def fig_spectrum() -> None:
 def fig_aliasing() -> None:
     # High, non-divisor fundamental + heavy drive: harmonics above Nyquist fold
     # back to clearly inharmonic frequencies, making aliasing obvious.
-    x, sr = _sine(freq=1837.0, dur=0.3)
+    # 48000 / 2500 = 19.2 (non-integer), so aliased components land off-harmonic.
+    x, sr = _sine(freq=2500.0, dur=0.3)
     params = dict(DEFAULTS)
     params.update(gain=60.0)
     y1 = ff.process(x, sr, **{**params, "oversample": 1})
@@ -136,7 +137,7 @@ def fig_aliasing() -> None:
     plt.figure(figsize=(7, 4))
     plt.plot(f1, s1, label="oversample = 1 (aliased)", lw=1.0)
     plt.plot(f8, s8, label="oversample = 8", lw=1.0, alpha=0.85)
-    plt.title("Aliasing reduction via oversampling (1837 Hz, heavy drive)")
+    plt.title("Aliasing reduction via oversampling (2500 Hz, heavy drive)")
     plt.xlabel("frequency (Hz)")
     plt.ylabel("magnitude (dB)")
     plt.xlim(0, sr / 2)
