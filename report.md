@@ -5,6 +5,30 @@
 
 ---
 
+## Introduction
+
+Jimi Hendrix (1942–1970) is widely regarded as the most influential electric guitarist in history.
+In the span of just four years of recording — from *Are You Experienced* (1967) to *Band of Gypsys*
+(1970) — he redefined what the guitar could sound like, blending blues expressiveness with
+psychedelic experimentation and raw power. His tone was inseparable from his technique: aggressive
+picking, whammy-bar manipulation, feedback, and, above all, heavy use of fuzz distortion.
+
+The pedal at the centre of that sound was the **Dallas Arbiter Fuzz Face**, a compact germanium
+transistor circuit introduced in 1966. Hendrix ran it at the front of his signal chain, feeding
+a cranked Marshall stack, to produce the dense, sustaining, almost vocal fuzz heard on tracks such
+as *Purple Haze*, *Foxey Lady*, and *Manic Depression*. The circuit's two germanium transistors
+clip the audio waveform **asymmetrically** — the positive and negative half-cycles saturate at
+different levels — which generates a rich mix of both even- and odd-order harmonics. That harmonic
+content is what gives the Fuzz Face its distinctive warmth and "bloom": notes swell, sustain far
+beyond their natural decay, and acquire a throaty, singing quality that no later solid-state or
+digital distortion has fully replicated.
+
+This report documents a digital implementation of the Fuzz Face effect, covering the perceptual
+qualities of the sound, the underlying DSP signal chain, the mathematical models used, and the
+design decisions made during implementation.
+
+---
+
 ## 1. What the effect does (the sound)
 
 The Fuzz Face is a classic guitar **fuzz** pedal — the aggressive, saturated tone
@@ -31,21 +55,31 @@ dynamic input into a thick, buzzy, *sustaining* tone. Two qualities define it:
 
 ### Signal flow
 
+**Stage 1 — nonlinear distortion path:**
+
 ```mermaid
 flowchart LR
-    A([x&#91;n&#93;\nInput]) --> B[Input gain g]
-    B --> C[Upsample ×N]
-    C --> D[Nonlinear\nwaveshaper f·]
-    D --> E[Downsample ÷N]
-    E --> F[DC-block\nHigh-pass]
-    F --> G[Tone\nLow-pass]
-    G --> H[Output\nlevel]
-    H --> I[Dry/Wet\nmix]
-    I --> J([y&#91;n&#93;\nOutput])
+    A(["x[n] — Input"]) --> B["Input gain g"]
+    B --> C["Upsample ×N"]
+    C --> D["Nonlinear\nwaveshaper f(·)"]
+    D --> E["Downsample ÷N"]
+    E --> Z(["→ post-filter"])
 
     style D fill:#f90,color:#000
     style C fill:#bbf,color:#000
     style E fill:#bbf,color:#000
+```
+
+**Stage 2 — post-filtering and mix:**
+
+```mermaid
+flowchart LR
+    Z(["post-filter →"]) --> F["DC-block\nHigh-pass"]
+    F --> G["Tone\nLow-pass"]
+    G --> H["Output level"]
+    H --> I["Dry/Wet mix"]
+    I --> J(["y[n] — Output"])
+
     style F fill:#bfb,color:#000
     style G fill:#bfb,color:#000
 ```
@@ -138,11 +172,11 @@ non-removable noise. This aliasing is suppressed by **oversampling**:
 
 ```mermaid
 flowchart LR
-    A([x&#91;n&#93;]) --> B["Upsample ×N\n(insert N−1 zeros\n+ anti-image LPF)"]
-    B --> C["Nonlinear\nf(·) at rate N·fₛ"]
+    A(["x[n]"]) --> B["Upsample ×N\n(insert N−1 zeros\n+ anti-image LPF)"]
+    B --> C["Nonlinear f(·)\nat rate N·fₛ"]
     C --> D["Anti-alias LPF\n(cut at fₛ/2)"]
-    D --> E["Downsample ÷N\n(keep every Nth sample)"]
-    E --> F([y&#91;n&#93;])
+    D --> E["Downsample ÷N\n(keep every Nth)"]
+    E --> F(["y[n]"])
     style C fill:#f90,color:#000
 ```
 
