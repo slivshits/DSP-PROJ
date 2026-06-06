@@ -1,4 +1,10 @@
-.venv/
+.venv*/
 .mplcache/
+.pyinstaller_cache/
 __pycache__/
 *.pyc
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec

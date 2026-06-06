@@ -33,6 +33,32 @@ python demo.py
 This renders `samples/wet/speechshort_fuzz.wav` and `samples/wet/casta_fuzz.wav`
 (default settings) and writes the figures in `figures/`.
 
+## Desktop app (GUI)
+
+A graphical version (`gui.py`) lets you pick an input file, adjust the fuzz with
+sliders (model, gain, asymmetry, oversampling, DC-block, tone, mix, volume),
+render, and play the input/output. Run it from source:
+
+```bash
+python gui.py          # requires a Python with Tk (tkinter) available
+```
+
+### Standalone executables (macOS .app / Windows .exe)
+
+The app is packaged with [PyInstaller](https://pyinstaller.org). Because
+PyInstaller cannot cross-compile, each OS is built on its own machine:
+
+- **Build locally:**
+  - macOS: `bash packaging/build_macos.sh`  → `dist/FuzzFace.app`
+  - Windows: `packaging\build_windows.bat`   → `dist\FuzzFace.exe`
+- **Build via CI (both at once):** the GitHub Actions workflow
+  `.github/workflows/build.yml` builds the macOS `.app` and Windows `.exe` and
+  uploads them as downloadable artifacts. Trigger it from the repo's
+  **Actions → Build desktop apps → Run workflow**, or by pushing a `v*` tag.
+
+> Note: the bundled apps are unsigned. On macOS, right-click → Open the first
+> time to bypass Gatekeeper; on Windows, allow it past SmartScreen.
+
 ## Parameters
 
 | Flag | Meaning | Default |
@@ -52,7 +78,12 @@ This renders `samples/wet/speechshort_fuzz.wav` and `samples/wet/casta_fuzz.wav`
 
 ```
 fuzzface.py            effect implementation + CLI
+gui.py                 desktop GUI (Tkinter)
 demo.py                renders wet samples and figures
+packaging/             PyInstaller build scripts (macOS + Windows)
+.github/workflows/     CI to build the desktop apps
+requirements.txt       runtime deps (incl. matplotlib for demo)
+requirements-build.txt deps for packaging the GUI (no matplotlib)
 samples/dry/           dry inputs (speechshort.wav, casta.wav)
 samples/wet/           processed outputs
 figures/               characteristic curve, waveform, spectrum, aliasing plots

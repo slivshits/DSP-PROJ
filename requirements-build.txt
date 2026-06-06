@@ -1,0 +1,5 @@
+# Runtime deps needed to package the GUI (matplotlib is NOT needed by the app).
+numpy==2.4.6
+scipy==1.17.1
+soundfile==0.14.0
+pyinstaller==6.16.0
