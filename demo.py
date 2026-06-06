@@ -32,7 +32,7 @@ DRY = ROOT / "samples" / "dry"
 WET = ROOT / "samples" / "wet"
 FIG = ROOT / "figures"
 
-DRY_FILES = ["speechshort.wav", "casta.wav"]
+DRY_FILES = ["speechshort.wav", "casta.wav", "jimi-hendrix-on-classical-guitar-purple-haze-Jãomusico.wav", "piano-nqalab.wav"]
 DEFAULTS = dict(gain=20.0, model="asym", neg_level=0.6, oversample=8, rh=0.995, rl=0.5)
 
 
@@ -63,7 +63,7 @@ def fig_characteristic() -> None:
     plt.close()
 
 
-def _sine(freq=220.0, sr=48000, dur=0.05):
+def _sine(freq=300.0, sr=48000, dur=0.05):
     t = np.arange(int(sr * dur)) / sr
     return 0.9 * np.sin(2 * np.pi * freq * t), sr
 
@@ -72,11 +72,11 @@ def fig_waveform() -> None:
     x, sr = _sine()
     y = ff.process(x, sr, **DEFAULTS)
     n = int(sr * 0.02)
-    t = np.arange(n) / sr * 1000.0
+    t = np.arange(n) / sr * 300.0
     plt.figure(figsize=(7, 4))
     plt.plot(t, x[:n], label="dry input", lw=1.2)
     plt.plot(t, y[:n], label="fuzz output", lw=1.2)
-    plt.title("Waveform before/after (220 Hz sine) - note asymmetric clipping")
+    plt.title("Waveform before/after (300 Hz sine) - note asymmetric clipping")
     plt.xlabel("time (ms)")
     plt.ylabel("amplitude")
     plt.legend()
@@ -86,25 +86,34 @@ def fig_waveform() -> None:
     plt.close()
 
 
-def _spectrum_db(sig, sr):
+def _spectrum_db(sig, ref_peak=None):
     win = np.hanning(len(sig))
     spec = np.abs(np.fft.rfft(sig * win))
-    spec /= np.max(spec) + 1e-12
-    freqs = np.fft.rfftfreq(len(sig), 1.0 / sr)
-    return freqs, 20 * np.log10(spec + 1e-9)
+    peak = ref_peak if ref_peak is not None else (np.max(spec) + 1e-12)
+    freqs = np.fft.rfftfreq(len(sig), 1.0 / 48000)
+    return freqs, 20 * np.log10(spec / peak + 1e-12)
 
 
 def fig_spectrum() -> None:
-    x, sr = _sine(freq=220.0, dur=0.2)
+    x, sr = _sine(freq=220.0, dur=0.5)
     y = ff.process(x, sr, **DEFAULTS)
-    fx, sx = _spectrum_db(x, sr)
-    fy, sy = _spectrum_db(y, sr)
+
+    win = np.hanning(len(x))
+    # Normalise both spectra to the dry signal's peak so the dry fundamental
+    # sits at 0 dB and the fuzz harmonics appear relative to it.
+    dry_peak = np.max(np.abs(np.fft.rfft(x * win))) + 1e-12
+    freqs = np.fft.rfftfreq(len(x), 1.0 / sr)
+    sx = 20 * np.log10(np.abs(np.fft.rfft(x * win)) / dry_peak + 1e-12)
+    sy = 20 * np.log10(np.abs(np.fft.rfft(y * np.hanning(len(y)))) / dry_peak + 1e-12)
+
     plt.figure(figsize=(7, 4))
-    plt.plot(fx, sx, label="dry input", lw=1.0)
-    plt.plot(fy, sy, label="fuzz output", lw=1.0, alpha=0.85)
-    plt.title("Spectrum before/after (220 Hz) - new even + odd harmonics")
+    # Draw fuzz first, then dry on top with a dashed line so both are visible.
+    plt.plot(freqs, sy, label="fuzz output", lw=1.2, color="tab:orange", alpha=0.9)
+    plt.plot(freqs, sx, label="dry input", lw=1.5, color="tab:blue",
+             linestyle="--", zorder=5)
+    plt.title("Spectrum before/after (220 Hz) — new even + odd harmonics")
     plt.xlabel("frequency (Hz)")
-    plt.ylabel("magnitude (dB)")
+    plt.ylabel("magnitude (dB, normalised to dry peak)")
     plt.xlim(0, 6000)
     plt.ylim(-90, 5)
     plt.legend()
