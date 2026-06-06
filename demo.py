@@ -72,11 +72,11 @@ def fig_waveform() -> None:
     x, sr = _sine()
     y = ff.process(x, sr, **DEFAULTS)
     n = int(sr * 0.02)
-    t = np.arange(n) / sr * 300.0
+    t = np.arange(n) / sr * 220.0
     plt.figure(figsize=(7, 4))
     plt.plot(t, x[:n], label="dry input", lw=1.2)
     plt.plot(t, y[:n], label="fuzz output", lw=1.2)
-    plt.title("Waveform before/after (300 Hz sine) - note asymmetric clipping")
+    plt.title("Waveform before/after (220) Hz sine) - note asymmetric clipping")
     plt.xlabel("time (ms)")
     plt.ylabel("amplitude")
     plt.legend()
@@ -86,11 +86,12 @@ def fig_waveform() -> None:
     plt.close()
 
 
-def _spectrum_db(sig, ref_peak=None):
+def _spectrum_db(sig, sr, ref_peak=None):
+    """Return (freqs, magnitude_dB). Normalise to ref_peak if given, else to own peak."""
     win = np.hanning(len(sig))
     spec = np.abs(np.fft.rfft(sig * win))
     peak = ref_peak if ref_peak is not None else (np.max(spec) + 1e-12)
-    freqs = np.fft.rfftfreq(len(sig), 1.0 / 48000)
+    freqs = np.fft.rfftfreq(len(sig), 1.0 / sr)
     return freqs, 20 * np.log10(spec / peak + 1e-12)
 
 
@@ -126,8 +127,7 @@ def fig_spectrum() -> None:
 def fig_aliasing() -> None:
     # High, non-divisor fundamental + heavy drive: harmonics above Nyquist fold
     # back to clearly inharmonic frequencies, making aliasing obvious.
-    # 48000 / 2500 = 19.2 (non-integer), so aliased components land off-harmonic.
-    x, sr = _sine(freq=2500.0, dur=0.3)
+    x, sr = _sine(freq=1837.0, dur=0.3)
     params = dict(DEFAULTS)
     params.update(gain=60.0)
     y1 = ff.process(x, sr, **{**params, "oversample": 1})
@@ -137,7 +137,7 @@ def fig_aliasing() -> None:
     plt.figure(figsize=(7, 4))
     plt.plot(f1, s1, label="oversample = 1 (aliased)", lw=1.0)
     plt.plot(f8, s8, label="oversample = 8", lw=1.0, alpha=0.85)
-    plt.title("Aliasing reduction via oversampling (2500 Hz, heavy drive)")
+    plt.title("Aliasing reduction via oversampling (1837 Hz, heavy drive)")
     plt.xlabel("frequency (Hz)")
     plt.ylabel("magnitude (dB)")
     plt.xlim(0, sr / 2)
