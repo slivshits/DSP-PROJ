@@ -32,35 +32,80 @@ DRY = ROOT / "samples" / "dry"
 WET = ROOT / "samples" / "wet"
 FIG = ROOT / "figures"
 
-DRY_FILES = ["speechshort.wav", "casta.wav", "jimi-hendrix-on-classical-guitar-purple-haze-Jãomusico.wav", "piano-nqalab.wav"]
+DRY_FILES = [
+    "speechshort.wav",
+    "casta.wav",
+    "jimi-hendrix-on-classical-guitar-purple-haze-Jãomusico.wav",
+    "piano-nqalab.wav",
+]
 DEFAULTS = dict(gain=20.0, model="asym", neg_level=0.6, oversample=8, rh=0.995, rl=0.5)
+
+# ── Italian dark blue-turquoise palette ──────────────────────────────────────
+C_NAVY     = "#1B2A4A"   # deep Italian navy
+C_TEAL     = "#006D77"   # dark teal / turquoise
+C_AQUA     = "#17A5B8"   # bright turquoise (accent)
+C_MIST     = "#83C5BE"   # pale turquoise (light detail)
+C_SLATE    = "#2E4057"   # mid blue-slate
+
+# Model colours for the characteristic-curve figure
+MODEL_COLORS = {
+    "asym":     C_TEAL,
+    "tube":     C_AQUA,
+    "exp":      C_SLATE,
+    "softclip": C_MIST,
+    "hard":     C_NAVY,
+}
+
+def _style() -> None:
+    """Apply the shared Italian dark blue-turquoise style to the current figure."""
+    plt.rcParams.update({
+        "figure.facecolor":  "#F4F8FB",
+        "axes.facecolor":    "#EAF2F5",
+        "axes.edgecolor":    C_NAVY,
+        "axes.labelcolor":   C_NAVY,
+        "xtick.color":       C_NAVY,
+        "ytick.color":       C_NAVY,
+        "text.color":        C_NAVY,
+        "grid.color":        "#AACDD6",
+        "grid.linestyle":    "--",
+        "grid.alpha":        0.5,
+        "legend.framealpha": 0.9,
+        "legend.edgecolor":  C_NAVY,
+        "font.family":       "sans-serif",
+    })
 
 
 def render_wet() -> None:
     WET.mkdir(parents=True, exist_ok=True)
     for name in DRY_FILES:
         src = DRY / name
+        if not src.exists():
+            print(f"  skip (not found): {name}")
+            continue
         dst = WET / f"{Path(name).stem}_fuzz.wav"
         ff.process_file(str(src), str(dst), subtype="PCM_24", **DEFAULTS)
         print(f"  {src.name} -> {dst.relative_to(ROOT)}")
 
 
 def fig_characteristic() -> None:
-    plt.figure(figsize=(6, 5))
+    _style()
+    fig, ax = plt.subplots(figsize=(6, 5))
     for model in ("asym", "tube", "exp", "softclip", "hard"):
-        x, y = ff.characteristic_curve(model=model, gain=DEFAULTS["gain"], neg_level=DEFAULTS["neg_level"])
-        y = y / np.max(np.abs(y))  # normalise for visual comparison
-        plt.plot(x, y, label=model)
-    plt.axhline(0, color="k", lw=0.5)
-    plt.axvline(0, color="k", lw=0.5)
-    plt.title(f"Characteristic curves  y = f(gain*x),  gain={DEFAULTS['gain']:g}")
-    plt.xlabel("input x")
-    plt.ylabel("output y (normalised)")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(FIG / "characteristic_curve.png", dpi=130)
-    plt.close()
+        x, y = ff.characteristic_curve(model=model, gain=DEFAULTS["gain"],
+                                        neg_level=DEFAULTS["neg_level"])
+        y = y / np.max(np.abs(y))
+        ax.plot(x, y, label=model, color=MODEL_COLORS[model], lw=1.8)
+    ax.axhline(0, color=C_NAVY, lw=0.6)
+    ax.axvline(0, color=C_NAVY, lw=0.6)
+    ax.set_title(f"Characteristic curves  y = f(gain·x),  gain={DEFAULTS['gain']:g}",
+                 color=C_NAVY, fontweight="bold")
+    ax.set_xlabel("input x")
+    ax.set_ylabel("output y (normalised)")
+    ax.legend()
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(FIG / "characteristic_curve.png", dpi=130)
+    plt.close(fig)
 
 
 def _sine(freq=300.0, sr=48000, dur=0.05):
@@ -69,21 +114,23 @@ def _sine(freq=300.0, sr=48000, dur=0.05):
 
 
 def fig_waveform() -> None:
+    _style()
     x, sr = _sine()
     y = ff.process(x, sr, **DEFAULTS)
     n = int(sr * 0.02)
-    t = np.arange(n) / sr * 220.0
-    plt.figure(figsize=(7, 4))
-    plt.plot(t, x[:n], label="dry input", lw=1.2)
-    plt.plot(t, y[:n], label="fuzz output", lw=1.2)
-    plt.title("Waveform before/after (220) Hz sine) - note asymmetric clipping")
-    plt.xlabel("time (ms)")
-    plt.ylabel("amplitude")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(FIG / "waveform_before_after.png", dpi=130)
-    plt.close()
+    t = np.arange(n) / sr * 1000.0
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(t, x[:n], label="dry input",   color=C_NAVY, lw=1.6)
+    ax.plot(t, y[:n], label="fuzz output", color=C_TEAL, lw=1.6, alpha=0.9)
+    ax.set_title("Waveform before/after (300 Hz sine) — asymmetric clipping",
+                 color=C_NAVY, fontweight="bold")
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("amplitude")
+    ax.legend()
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(FIG / "waveform_before_after.png", dpi=130)
+    plt.close(fig)
 
 
 def _spectrum_db(sig, sr, ref_peak=None):
@@ -96,37 +143,36 @@ def _spectrum_db(sig, sr, ref_peak=None):
 
 
 def fig_spectrum() -> None:
+    _style()
     x, sr = _sine(freq=220.0, dur=0.5)
     y = ff.process(x, sr, **DEFAULTS)
 
     win = np.hanning(len(x))
-    # Normalise both spectra to the dry signal's peak so the dry fundamental
-    # sits at 0 dB and the fuzz harmonics appear relative to it.
     dry_peak = np.max(np.abs(np.fft.rfft(x * win))) + 1e-12
     freqs = np.fft.rfftfreq(len(x), 1.0 / sr)
     sx = 20 * np.log10(np.abs(np.fft.rfft(x * win)) / dry_peak + 1e-12)
     sy = 20 * np.log10(np.abs(np.fft.rfft(y * np.hanning(len(y)))) / dry_peak + 1e-12)
 
-    plt.figure(figsize=(7, 4))
-    # Draw fuzz first, then dry on top with a dashed line so both are visible.
-    plt.plot(freqs, sy, label="fuzz output", lw=1.2, color="tab:orange", alpha=0.9)
-    plt.plot(freqs, sx, label="dry input", lw=1.5, color="tab:blue",
-             linestyle="--", zorder=5)
-    plt.title("Spectrum before/after (220 Hz) — new even + odd harmonics")
-    plt.xlabel("frequency (Hz)")
-    plt.ylabel("magnitude (dB, normalised to dry peak)")
-    plt.xlim(0, 6000)
-    plt.ylim(-90, 5)
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(FIG / "spectrum_before_after.png", dpi=130)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(freqs, sy, label="fuzz output", color=C_TEAL,  lw=1.4, alpha=0.9)
+    ax.plot(freqs, sx, label="dry input",   color=C_NAVY,  lw=1.8,
+            linestyle="--", zorder=5)
+    ax.set_title("Spectrum before/after (220 Hz) — even + odd harmonics",
+                 color=C_NAVY, fontweight="bold")
+    ax.set_xlabel("frequency (Hz)")
+    ax.set_ylabel("magnitude (dB, normalised to dry peak)")
+    ax.set_xlim(0, 6000)
+    ax.set_ylim(-90, 5)
+    ax.legend()
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(FIG / "spectrum_before_after.png", dpi=130)
+    plt.close(fig)
 
 
 def fig_aliasing() -> None:
-    # High, non-divisor fundamental + heavy drive: harmonics above Nyquist fold
-    # back to clearly inharmonic frequencies, making aliasing obvious.
+    _style()
+    # 48000 / 1837 ≈ 26.1  → aliased harmonics land at inharmonic positions
     x, sr = _sine(freq=1837.0, dur=0.3)
     params = dict(DEFAULTS)
     params.update(gain=60.0)
@@ -134,19 +180,20 @@ def fig_aliasing() -> None:
     y8 = ff.process(x, sr, **{**params, "oversample": 8})
     f1, s1 = _spectrum_db(y1, sr)
     f8, s8 = _spectrum_db(y8, sr)
-    plt.figure(figsize=(7, 4))
-    plt.plot(f1, s1, label="oversample = 1 (aliased)", lw=1.0)
-    plt.plot(f8, s8, label="oversample = 8", lw=1.0, alpha=0.85)
-    plt.title("Aliasing reduction via oversampling (1837 Hz, heavy drive)")
-    plt.xlabel("frequency (Hz)")
-    plt.ylabel("magnitude (dB)")
-    plt.xlim(0, sr / 2)
-    plt.ylim(-90, 5)
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(FIG / "aliasing_oversampling.png", dpi=130)
-    plt.close()
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(f1, s1, label="oversample = 1 (aliased)", color=C_SLATE, lw=1.0, alpha=0.85)
+    ax.plot(f8, s8, label="oversample = 8",           color=C_AQUA,  lw=1.4)
+    ax.set_title("Aliasing reduction via oversampling (1837 Hz, heavy drive)",
+                 color=C_NAVY, fontweight="bold")
+    ax.set_xlabel("frequency (Hz)")
+    ax.set_ylabel("magnitude (dB)")
+    ax.set_xlim(0, sr / 2)
+    ax.set_ylim(-90, 5)
+    ax.legend()
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(FIG / "aliasing_oversampling.png", dpi=130)
+    plt.close(fig)
 
 
 def main() -> None:
