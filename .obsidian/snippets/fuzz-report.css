@@ -1,0 +1,71 @@
+/* ============================================================
+   Fuzz Face Report — A4 PDF layout
+   Enable: Settings → Appearance → CSS Snippets → fuzz-report
+   ============================================================ */
+
+/* ── Line width: A4 text block ≈ 170 mm ─────────────────── */
+.fuzz-report.markdown-preview-view,
+.fuzz-report.markdown-reading-view {
+  max-width: 660px;   /* ~170 mm at 96 dpi — matches A4 with 20 mm margins */
+  margin: 0 auto;
+}
+
+/* ── Images never overflow the column ───────────────────── */
+.fuzz-report img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── Heading orphan prevention ───────────────────────────── */
+/* A heading must always be followed by content on the same page.
+   The explicit <div style="page-break-before: always"> in the markdown
+   handles section starts; these rules catch h3 sub-headings. */
+.fuzz-report h1,
+.fuzz-report h2,
+.fuzz-report h3,
+.fuzz-report h4 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Keep figures, diagrams, and code blocks in one piece */
+.fuzz-report figure,
+.fuzz-report p:has(> img),
+.fuzz-report .mermaid,
+.fuzz-report pre,
+.fuzz-report blockquote {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Keep list items together (Implementation choices section) */
+.fuzz-report ul,
+.fuzz-report ol {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Paragraph widow / orphan control */
+.fuzz-report p {
+  orphans: 3;
+  widows: 3;
+}
+
+/* ── @media print — reinforced for Obsidian PDF export ──── */
+@media print {
+  /* Headings must stay with what follows them */
+  h1, h2, h3, h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Keep figures / diagrams / code intact */
+  figure, pre, blockquote, ul, ol {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  p { orphans: 3; widows: 3; }
+
+  img { max-width: 100% !important; height: auto !important; }
+}

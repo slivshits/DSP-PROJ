@@ -76,6 +76,13 @@ def _style() -> None:
 
 
 def render_wet() -> None:
+    """Process every dry sample through the Fuzz Face and save the result.
+
+    Reads each file from ``samples/dry/``, applies the effect with the default
+    settings, and writes a new file to ``samples/wet/`` with ``_fuzz`` appended
+    to the filename. The output is saved as 24-bit WAV to match the quality of
+    the original recordings.
+    """
     WET.mkdir(parents=True, exist_ok=True)
     for name in DRY_FILES:
         src = DRY / name
@@ -88,6 +95,16 @@ def render_wet() -> None:
 
 
 def fig_characteristic() -> None:
+    """Plot the transfer (input → output) curves for every clipping model.
+
+    A transfer curve shows what the waveshaper does to each possible input
+    amplitude. A straight diagonal line would mean no distortion at all — the
+    more the curve bends near the top and bottom, the harder the clipping and
+    the richer the harmonic content. The key thing to notice is that the
+    ``asym`` (Fuzz Face) curve bends *differently* on the positive and negative
+    sides, which is what produces even-order harmonics and gives the pedal its
+    distinctive warm, vocal sound.
+    """
     _style()
     fig, ax = plt.subplots(figsize=(6, 5))
     for model in ("asym", "tube", "exp", "softclip", "hard"):
@@ -114,6 +131,16 @@ def _sine(freq=300.0, sr=48000, dur=0.05):
 
 
 def fig_waveform() -> None:
+    """Plot a single sine wave before and after the Fuzz Face.
+
+    Shows the effect in the time domain: the clean sine becomes asymmetrically
+    clipped — the top of the wave is flattened more than the bottom (or vice
+    versa depending on the model). This asymmetry is the root cause of the
+    even-order harmonics. The figure also shows the slight DC shift that appears
+    before the DC-blocking filter removes it, and the overall compression of
+    the waveform's dynamic range (the peaks are limited, so quiet parts get
+    proportionally louder).
+    """
     _style()
     x, sr = _sine()
     y = ff.process(x, sr, **DEFAULTS)
@@ -143,6 +170,17 @@ def _spectrum_db(sig, sr, ref_peak=None):
 
 
 def fig_spectrum() -> None:
+    """Plot the frequency spectrum of a sine wave before and after the Fuzz Face.
+
+    A pure sine wave has a single spike in its spectrum — one frequency, no
+    others. After the Fuzz Face, that single tone becomes a full harmonic series:
+    spikes appear at every integer multiple of the original frequency (440 Hz,
+    660 Hz, 880 Hz, …). Both even and odd multiples are present because the
+    clipping is asymmetric. Both are normalised to the same reference
+    (the dry signal's peak) so we can see exactly how strong each harmonic is
+    relative to the original tone. The dry signal is drawn as a dashed line so
+    it remains visible behind the fuzz output.
+    """
     _style()
     x, sr = _sine(freq=220.0, dur=0.5)
     y = ff.process(x, sr, **DEFAULTS)
@@ -171,6 +209,23 @@ def fig_spectrum() -> None:
 
 
 def fig_aliasing() -> None:
+    """Compare the spectrum with and without oversampling to show aliasing.
+
+    When a nonlinearity is applied at the original sample rate (oversample=1),
+    it creates harmonics that extend above the Nyquist frequency (half the
+    sample rate). Those high harmonics can't be represented at the given sample
+    rate and instead "fold back" into the audible range at random, inharmonic
+    frequencies — this is aliasing, and it sounds like harsh, unpleasant noise.
+
+    By choosing a fundamental (1837 Hz) that does NOT divide evenly into the
+    sample rate (48000 / 1837 ≈ 26.1), the folded-back harmonics land at
+    clearly inharmonic positions, making the aliasing visually obvious as a
+    dense "grass" of spurious frequency components.
+
+    With oversample=8 the nonlinearity runs at 8× the sample rate, so the first
+    aliased harmonic appears above 8 × 24000 Hz = 192 kHz — far outside the
+    audible range. The spectrum is clean.
+    """
     _style()
     # 48000 / 1837 ≈ 26.1  → aliased harmonics land at inharmonic positions
     x, sr = _sine(freq=1837.0, dur=0.3)
@@ -197,6 +252,32 @@ def fig_aliasing() -> None:
 
 
 def main() -> None:
+    """Run the full demonstration pipeline and save all outputs to disk.
+
+    This is the single entry point for the demo. Running ``python demo.py``
+    does the following steps in order:
+
+    1. **Render wet audio** — applies the Fuzz Face effect (with default
+       settings) to every dry sample in ``samples/dry/`` and saves the result
+       as a 24-bit WAV in ``samples/wet/``. This gives you side-by-side audio
+       files you can listen to and compare.
+
+    2. **Characteristic curves** — saves ``figures/characteristic_curve.png``,
+       showing how each clipping model distorts the signal amplitude.
+
+    3. **Waveform before/after** — saves ``figures/waveform_before_after.png``,
+       showing the time-domain shape of a sine wave before and after the effect.
+
+    4. **Spectrum before/after** — saves ``figures/spectrum_before_after.png``,
+       showing the new harmonics the fuzz adds in the frequency domain.
+
+    5. **Aliasing comparison** — saves ``figures/aliasing_oversampling.png``,
+       contrasting a heavily driven signal with and without oversampling to make
+       the aliasing artefacts visible.
+
+    All output files are overwritten if they already exist, so re-running
+    ``demo.py`` always reflects the current state of ``fuzzface.py``.
+    """
     FIG.mkdir(parents=True, exist_ok=True)
     print("Rendering wet samples:")
     render_wet()
